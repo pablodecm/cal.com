@@ -1,3 +1,4 @@
+import { Client } from "@upstash/qstash";
 // eslint-disable-next-line no-restricted-imports
 import { cloneDeep } from "lodash";
 import type { TFunction } from "next-i18next";
@@ -65,8 +66,21 @@ export const sendScheduledEmails = async (
   calEvent: CalendarEvent,
   eventNameObject?: EventNameObjectType,
   hostEmailDisabled?: boolean,
-  attendeeEmailDisabled?: boolean
+  attendeeEmailDisabled?: boolean,
+  dispatch = true
 ) => {
+  if (
+    await maybeDispatchEmail(
+      dispatch,
+      "sendScheduledEmails",
+      calEvent,
+      eventNameObject,
+      hostEmailDisabled,
+      attendeeEmailDisabled
+    )
+  )
+    return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   if (!hostEmailDisabled) {
@@ -103,7 +117,13 @@ export const sendScheduledEmails = async (
 };
 
 // for rescheduled round robin booking that assigned new members
-export const sendRoundRobinScheduledEmails = async (calEvent: CalendarEvent, members: Person[]) => {
+export const sendRoundRobinScheduledEmails = async (
+  calEvent: CalendarEvent,
+  members: Person[],
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendRoundRobinScheduledEmails", calEvent, members)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   for (const teamMember of members) {
@@ -113,7 +133,13 @@ export const sendRoundRobinScheduledEmails = async (calEvent: CalendarEvent, mem
   await Promise.all(emailsToSend);
 };
 
-export const sendRoundRobinRescheduledEmails = async (calEvent: CalendarEvent, members: Person[]) => {
+export const sendRoundRobinRescheduledEmails = async (
+  calEvent: CalendarEvent,
+  members: Person[],
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendRoundRobinRescheduledEmails", calEvent, members)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   for (const teamMember of members) {
@@ -123,7 +149,13 @@ export const sendRoundRobinRescheduledEmails = async (calEvent: CalendarEvent, m
   await Promise.all(emailsToSend);
 };
 
-export const sendRoundRobinCancelledEmails = async (calEvent: CalendarEvent, members: Person[]) => {
+export const sendRoundRobinCancelledEmails = async (
+  calEvent: CalendarEvent,
+  members: Person[],
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendRoundRobinCancelledEmails", calEvent, members)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   for (const teamMember of members) {
@@ -133,7 +165,9 @@ export const sendRoundRobinCancelledEmails = async (calEvent: CalendarEvent, mem
   await Promise.all(emailsToSend);
 };
 
-export const sendRescheduledEmails = async (calEvent: CalendarEvent) => {
+export const sendRescheduledEmails = async (calEvent: CalendarEvent, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendRescheduledEmails", calEvent)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(sendEmail(() => new OrganizerRescheduledEmail({ calEvent })));
@@ -153,7 +187,13 @@ export const sendRescheduledEmails = async (calEvent: CalendarEvent) => {
   await Promise.all(emailsToSend);
 };
 
-export const sendRescheduledSeatEmail = async (calEvent: CalendarEvent, attendee: Person) => {
+export const sendRescheduledSeatEmail = async (
+  calEvent: CalendarEvent,
+  attendee: Person,
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendRescheduledSeatEmail", calEvent, attendee)) return;
+
   const clonedCalEvent = cloneDeep(calEvent);
   const emailsToSend: Promise<unknown>[] = [
     sendEmail(() => new AttendeeRescheduledEmail(clonedCalEvent, attendee)),
@@ -169,8 +209,23 @@ export const sendScheduledSeatsEmails = async (
   newSeat: boolean,
   showAttendees: boolean,
   hostEmailDisabled?: boolean,
-  attendeeEmailDisabled?: boolean
+  attendeeEmailDisabled?: boolean,
+  dispatch = true
 ) => {
+  if (
+    await maybeDispatchEmail(
+      dispatch,
+      "sendScheduledSeatsEmails",
+      calEvent,
+      invitee,
+      newSeat,
+      showAttendees,
+      hostEmailDisabled,
+      attendeeEmailDisabled
+    )
+  )
+    return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   if (!hostEmailDisabled) {
@@ -201,7 +256,13 @@ export const sendScheduledSeatsEmails = async (
   await Promise.all(emailsToSend);
 };
 
-export const sendCancelledSeatEmails = async (calEvent: CalendarEvent, cancelledAttendee: Person) => {
+export const sendCancelledSeatEmails = async (
+  calEvent: CalendarEvent,
+  cancelledAttendee: Person,
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendCancelledSeatEmails", calEvent, cancelledAttendee)) return;
+
   const clonedCalEvent = cloneDeep(calEvent);
   await Promise.all([
     sendEmail(() => new AttendeeCancelledSeatEmail(clonedCalEvent, cancelledAttendee)),
@@ -209,7 +270,9 @@ export const sendCancelledSeatEmails = async (calEvent: CalendarEvent, cancelled
   ]);
 };
 
-export const sendOrganizerRequestEmail = async (calEvent: CalendarEvent) => {
+export const sendOrganizerRequestEmail = async (calEvent: CalendarEvent, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendOrganizerRequestEmail", calEvent)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(sendEmail(() => new OrganizerRequestEmail({ calEvent })));
@@ -223,11 +286,19 @@ export const sendOrganizerRequestEmail = async (calEvent: CalendarEvent) => {
   await Promise.all(emailsToSend);
 };
 
-export const sendAttendeeRequestEmail = async (calEvent: CalendarEvent, attendee: Person) => {
+export const sendAttendeeRequestEmail = async (
+  calEvent: CalendarEvent,
+  attendee: Person,
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendAttendeeRequestEmail", calEvent, attendee)) return;
+
   await sendEmail(() => new AttendeeRequestEmail(calEvent, attendee));
 };
 
-export const sendDeclinedEmails = async (calEvent: CalendarEvent) => {
+export const sendDeclinedEmails = async (calEvent: CalendarEvent, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendDeclinedEmails", calEvent)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(
@@ -241,8 +312,11 @@ export const sendDeclinedEmails = async (calEvent: CalendarEvent) => {
 
 export const sendCancelledEmails = async (
   calEvent: CalendarEvent,
-  eventNameObject: Pick<EventNameObjectType, "eventName">
+  eventNameObject: Pick<EventNameObjectType, "eventName">,
+  dispatch = true
 ) => {
+  if (await maybeDispatchEmail(dispatch, "sendCancelledEmails", calEvent, eventNameObject)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(sendEmail(() => new OrganizerCancelledEmail({ calEvent })));
@@ -279,7 +353,9 @@ export const sendCancelledEmails = async (
   await Promise.all(emailsToSend);
 };
 
-export const sendOrganizerRequestReminderEmail = async (calEvent: CalendarEvent) => {
+export const sendOrganizerRequestReminderEmail = async (calEvent: CalendarEvent, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendOrganizerRequestReminderEmail", calEvent)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(sendEmail(() => new OrganizerRequestReminderEmail({ calEvent })));
@@ -291,7 +367,9 @@ export const sendOrganizerRequestReminderEmail = async (calEvent: CalendarEvent)
   }
 };
 
-export const sendAwaitingPaymentEmail = async (calEvent: CalendarEvent) => {
+export const sendAwaitingPaymentEmail = async (calEvent: CalendarEvent, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendAwaitingPaymentEmail", calEvent)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(
@@ -302,7 +380,9 @@ export const sendAwaitingPaymentEmail = async (calEvent: CalendarEvent) => {
   await Promise.all(emailsToSend);
 };
 
-export const sendOrganizerPaymentRefundFailedEmail = async (calEvent: CalendarEvent) => {
+export const sendOrganizerPaymentRefundFailedEmail = async (calEvent: CalendarEvent, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendOrganizerPaymentRefundFailedEmail", calEvent)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
   emailsToSend.push(sendEmail(() => new OrganizerPaymentRefundFailedEmail({ calEvent })));
 
@@ -315,30 +395,43 @@ export const sendOrganizerPaymentRefundFailedEmail = async (calEvent: CalendarEv
   await Promise.all(emailsToSend);
 };
 
-export const sendPasswordResetEmail = async (passwordResetEvent: PasswordReset) => {
+export const sendPasswordResetEmail = async (passwordResetEvent: PasswordReset, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendPasswordResetEmail", passwordResetEvent)) return;
+
   await sendEmail(() => new ForgotPasswordEmail(passwordResetEvent));
 };
 
-export const sendTeamInviteEmail = async (teamInviteEvent: TeamInvite) => {
+export const sendTeamInviteEmail = async (teamInviteEvent: TeamInvite, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendTeamInviteEmail", teamInviteEvent)) return;
+
   await sendEmail(() => new TeamInviteEmail(teamInviteEvent));
 };
 
-export const sendOrganizationAutoJoinEmail = async (orgInviteEvent: OrgAutoInvite) => {
+export const sendOrganizationAutoJoinEmail = async (orgInviteEvent: OrgAutoInvite, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendOrganizationAutoJoinEmail", orgInviteEvent)) return;
+
   await sendEmail(() => new OrgAutoJoinEmail(orgInviteEvent));
 };
 
-export const sendEmailVerificationLink = async (verificationInput: EmailVerifyLink) => {
+export const sendEmailVerificationLink = async (verificationInput: EmailVerifyLink, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendEmailVerificationLink", verificationInput)) return;
+
   await sendEmail(() => new AccountVerifyEmail(verificationInput));
 };
 
-export const sendEmailVerificationCode = async (verificationInput: EmailVerifyCode) => {
+export const sendEmailVerificationCode = async (verificationInput: EmailVerifyCode, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendEmailVerificationCode", verificationInput)) return;
+
   await sendEmail(() => new AttendeeVerifyEmail(verificationInput));
 };
 
 export const sendRequestRescheduleEmail = async (
   calEvent: CalendarEvent,
-  metadata: { rescheduleLink: string }
+  metadata: { rescheduleLink: string },
+  dispatch = true
 ) => {
+  if (await maybeDispatchEmail(dispatch, "sendRequestRescheduleEmail", calEvent, metadata)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(sendEmail(() => new OrganizerRequestedToRescheduleEmail(calEvent, metadata)));
@@ -348,7 +441,9 @@ export const sendRequestRescheduleEmail = async (
   await Promise.all(emailsToSend);
 };
 
-export const sendLocationChangeEmails = async (calEvent: CalendarEvent) => {
+export const sendLocationChangeEmails = async (calEvent: CalendarEvent, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendLocationChangeEmails", calEvent)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(sendEmail(() => new OrganizerLocationChangeEmail({ calEvent })));
@@ -367,53 +462,91 @@ export const sendLocationChangeEmails = async (calEvent: CalendarEvent) => {
 
   await Promise.all(emailsToSend);
 };
-export const sendFeedbackEmail = async (feedback: Feedback) => {
+
+export const sendFeedbackEmail = async (feedback: Feedback, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendFeedbackEmail", feedback)) return;
+
   await sendEmail(() => new FeedbackEmail(feedback));
 };
 
-export const sendBrokenIntegrationEmail = async (evt: CalendarEvent, type: "video" | "calendar") => {
+export const sendBrokenIntegrationEmail = async (
+  evt: CalendarEvent,
+  type: "video" | "calendar",
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendBrokenIntegrationEmail", evt, type)) return;
+
   await sendEmail(() => new BrokenIntegrationEmail(evt, type));
 };
 
-export const sendDisabledAppEmail = async ({
-  email,
-  appName,
-  appType,
-  t,
-  title = undefined,
-  eventTypeId = undefined,
-}: {
-  email: string;
-  appName: string;
-  appType: string[];
-  t: TFunction;
-  title?: string;
-  eventTypeId?: number;
-}) => {
+export const sendDisabledAppEmail = async (
+  {
+    email,
+    appName,
+    appType,
+    t,
+    title = undefined,
+    eventTypeId = undefined,
+  }: {
+    email: string;
+    appName: string;
+    appType: string[];
+    t: TFunction;
+    title?: string;
+    eventTypeId?: number;
+  },
+  dispatch = true
+) => {
+  if (
+    await maybeDispatchEmail(dispatch, "sendDisabledAppEmail", {
+      email,
+      appName,
+      appType,
+      t,
+      title,
+      eventTypeId,
+    })
+  )
+    return;
+
   await sendEmail(() => new DisabledAppEmail(email, appName, appType, t, title, eventTypeId));
 };
 
-export const sendSlugReplacementEmail = async ({
-  email,
-  name,
-  teamName,
-  t,
-  slug,
-}: {
-  email: string;
-  name: string;
-  teamName: string | null;
-  t: TFunction;
-  slug: string;
-}) => {
+export const sendSlugReplacementEmail = async (
+  {
+    email,
+    name,
+    teamName,
+    t,
+    slug,
+  }: {
+    email: string;
+    name: string;
+    teamName: string | null;
+    t: TFunction;
+    slug: string;
+  },
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendSlugReplacementEmail", { email, name, teamName, slug, t }))
+    return;
+
   await sendEmail(() => new SlugReplacementEmail(email, name, teamName, slug, t));
 };
 
-export const sendNoShowFeeChargedEmail = async (attendee: Person, evt: CalendarEvent) => {
+export const sendNoShowFeeChargedEmail = async (attendee: Person, evt: CalendarEvent, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendNoShowFeeChargedEmail", attendee, evt)) return;
+
   await sendEmail(() => new NoShowFeeChargedEmail(evt, attendee));
 };
 
-export const sendDailyVideoRecordingEmails = async (calEvent: CalendarEvent, downloadLink: string) => {
+export const sendDailyVideoRecordingEmails = async (
+  calEvent: CalendarEvent,
+  downloadLink: string,
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendDailyVideoRecordingEmails", calEvent, downloadLink)) return;
+
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(sendEmail(() => new OrganizerDailyVideoDownloadRecordingEmail(calEvent, downloadLink)));
@@ -426,14 +559,110 @@ export const sendDailyVideoRecordingEmails = async (calEvent: CalendarEvent, dow
   await Promise.all(emailsToSend);
 };
 
-export const sendOrganizationEmailVerification = async (sendOrgInput: OrganizationEmailVerify) => {
+export const sendOrganizationEmailVerification = async (
+  sendOrgInput: OrganizationEmailVerify,
+  dispatch = true
+) => {
+  if (await maybeDispatchEmail(dispatch, "sendOrganizationEmailVerification", sendOrgInput)) return;
+
   await sendEmail(() => new OrganizationEmailVerification(sendOrgInput));
 };
 
-export const sendMonthlyDigestEmails = async (eventData: MonthlyDigestEmailData) => {
+export const sendMonthlyDigestEmails = async (eventData: MonthlyDigestEmailData, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendMonthlyDigestEmails", eventData)) return;
+
   await sendEmail(() => new MonthlyDigestEmail(eventData));
 };
 
-export const sendAdminOrganizationNotification = async (input: OrganizationNotification) => {
+export const sendAdminOrganizationNotification = async (input: OrganizationNotification, dispatch = true) => {
+  if (await maybeDispatchEmail(dispatch, "sendAdminOrganizationNotification", input)) return;
+
   await sendEmail(() => new AdminOrganizationNotification(input));
+};
+
+// create a object will of all the emails actions
+export const emailActions = {
+  sendScheduledEmails,
+  sendRoundRobinScheduledEmails,
+  sendRoundRobinRescheduledEmails,
+  sendRoundRobinCancelledEmails,
+  sendRescheduledEmails,
+  sendRescheduledSeatEmail,
+  sendScheduledSeatsEmails,
+  sendCancelledSeatEmails,
+  sendOrganizerRequestEmail,
+  sendAttendeeRequestEmail,
+  sendDeclinedEmails,
+  sendCancelledEmails,
+  sendOrganizerRequestReminderEmail,
+  sendAwaitingPaymentEmail,
+  sendOrganizerPaymentRefundFailedEmail,
+  sendPasswordResetEmail,
+  sendTeamInviteEmail,
+  sendOrganizationAutoJoinEmail,
+  sendEmailVerificationLink,
+  sendEmailVerificationCode,
+  sendRequestRescheduleEmail,
+  sendLocationChangeEmails,
+  sendFeedbackEmail,
+  sendBrokenIntegrationEmail,
+  sendDisabledAppEmail,
+  sendSlugReplacementEmail,
+  sendNoShowFeeChargedEmail,
+  sendDailyVideoRecordingEmails,
+  sendOrganizationEmailVerification,
+  sendMonthlyDigestEmails,
+  sendAdminOrganizationNotification,
+};
+
+export type EmailAction = keyof typeof emailActions;
+// export type EmailActionFunctionParams = {
+//   [K in keyof typeof emailActions]: Parameters<(typeof emailActions)[K]>;
+// };
+
+export const maybeDispatchEmail = async (dispatch: boolean, action: EmailAction, ...params: any[]) => {
+  console.log("params", params);
+  if (dispatch && process.env.QSTASH_URL === "localhost") {
+    console.log("making send_email request locally");
+    await fetch(`${process.env.NEXT_PUBLIC_WEBAPP_URL}/api/queue/send-email`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: action,
+        params: params,
+      }),
+    });
+    console.log("send_email request made locally");
+    return true;
+  } else if (dispatch && process.env.QSTASH_URL && process.env.QSTASH_TOKEN) {
+    console.log("making send_email request to qstash");
+    // If message queue is set, send the message to the queue
+    const client = new Client({
+      token: process.env.QSTASH_TOKEN,
+    });
+
+    // If handler api url is set, use it, otherwise use the webapp url
+    // this is useful for local development by means of a tunnel
+    const handlerBaseURL = process.env.QSTASH_HANDLER_API_URL
+      ? process.env.QSTASH_HANDLER_API_URL
+      : process.env.NEXT_PUBLIC_WEBAPP_URL;
+
+    // The call is identical to the fetch call above as it will do a fetch
+    client.publishJSON({
+      url: `${handlerBaseURL}/api/queue/send-email`,
+      body: {
+        action: action,
+        params: params,
+      },
+      // Can configure retries and other options such as delay, schedules, callback, etc.
+      retries: 2,
+    });
+    console.log("send_email request made to qstash");
+    return true;
+  } else {
+    return false;
+  }
 };

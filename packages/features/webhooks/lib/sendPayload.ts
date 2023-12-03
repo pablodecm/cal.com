@@ -1,4 +1,5 @@
 import type { Webhook } from "@prisma/client";
+import { Client } from "@upstash/qstash";
 import { createHmac } from "crypto";
 import { compile } from "handlebars";
 
@@ -101,8 +102,12 @@ const sendPayload = async (
   triggerEvent: string,
   createdAt: string,
   webhook: Pick<Webhook, "subscriberUrl" | "appId" | "payloadTemplate">,
-  data: Omit<WebhookDataType, "createdAt" | "triggerEvent">
+  data: Omit<WebhookDataType, "createdAt" | "triggerEvent">,
+  dispatch = true
 ) => {
+  if (await maybeDispatchWebhook(dispatch, secretKey, triggerEvent, createdAt, webhook, data)) {
+    return;
+  }
   const { appId, payloadTemplate: template } = webhook;
 
   const contentType =
@@ -192,3 +197,52 @@ const _sendPayload = async (
 };
 
 export default sendPayload;
+
+const action = "sendPayload";
+export type WebhookAction = typeof action;
+
+export const maybeDispatchWebhook = async (dispatch: boolean, ...params: any[]) => {
+  console.log("params", params);
+  if (dispatch && process.env.QSTASH_URL === "localhost") {
+    await fetch(`${process.env.NEXT_PUBLIC_WEBAPP_URL}/api/queue/send-webhook`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: action,
+        params: params,
+      }),
+    });
+    console.log("send-webhook request made locally");
+    return true;
+  } else if (dispatch && process.env.QSTASH_URL && process.env.QSTASH_TOKEN) {
+    console.log("making send-webhook request to qstash");
+    // If message queue is set, send the message to the queue
+    const client = new Client({
+      token: process.env.QSTASH_TOKEN,
+    });
+
+    // If handler api url is set, use it, otherwise use the webapp url
+    // this is useful for local development by means of a tunnel
+    const handlerBaseURL = process.env.QSTASH_HANDLER_API_URL
+      ? process.env.QSTASH_HANDLER_API_URL
+      : process.env.NEXT_PUBLIC_WEBAPP_URL;
+
+    // The call is identical to the fetch call above as it will do a fetch
+    client.publishJSON({
+      url: `${handlerBaseURL}/api/queue/send-webhook`,
+      body: {
+        action: action,
+        params: params,
+      },
+      // Can configure retries and other options such as delay, schedules, callback, etc.
+      retries: 2,
+    });
+    console.log("send-webhook request made to qstash");
+    return true;
+  } else {
+    return false;
+  }
+};
